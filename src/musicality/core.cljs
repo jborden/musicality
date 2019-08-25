@@ -4,14 +4,11 @@
 
 (enable-console-print!)
 
-(println "This text is printed from src/musicality/core.cljs. Go ahead and edit it and see reloading in action.")
-
 ;; define your app data so that it doesn't get over-written on reload
 
-(def state (r/atom {:displayed-progression "None Yet!"
-                    :current-progression "None Yet!"}))
+(def state (r/atom {:current-progression nil
+                    :reveal false}))
 
-(def foo "bar")
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
   ;; your application
@@ -46,22 +43,39 @@
 
 (defn PlayChordProgression
   []
-  (let [current-progression (r/cursor state [:current-progression])]
-    [:button {:on-click (fn [e]
-                          (reset! current-progression (rand-nth chord-progressions))
-                          (play-chord-progression  @current-progression))}
-     "Play Progression!"]))
+  (let [current-progression (r/cursor state [:current-progression])
+        reveal (r/cursor state [:reveal])]
+    [:div
+     [:div [:h1 "Last Played Progression: " (cond (nil? @current-progression)
+                                                  nil
+                                                  @reveal
+                                                  (clojure.string/join "" (map #(-> % symbol str) @current-progression))
+                                                  :else
+                                                  [:button.ui.button {:on-click #(reset! reveal true)} "Reveal"])]]
+     [:br]
+     [:button.ui.button.positive.basic {:on-click (fn [e]
+                                                    (reset! reveal false)
+                                                    (reset! current-progression (rand-nth chord-progressions))
+                                                    (play-chord-progression  @current-progression))
+               :style {:font-size "1em"}}
+      "Play New Progression"]
+     (when-not (nil? @current-progression)
+       [:button.ui.button.primary.basic {:on-click (fn [e]
+                                                     (play-chord-progression  @current-progression))
+                                         :style {:font-size "1em"}}
+        [:i.redo.icon] "Replay"])]))
 
-(defn ShowProgression
+#_(defn ShowProgression
   []
-  (let [displayed-progression (r/cursor state [:displayed-progression])
-        current-progression (r/cursor state [:current-progression])]
-    [:div [:h1 "Last Played Progression"]
-     [:h1 (clojure.string/join "" (map #(-> % symbol str) @displayed-progression))]
-     [:button {:on-click (fn [e]
-                           (reset! displayed-progression @current-progression))}
-      "Display Last Played Progression"]]))
+  (let [
+]
+))
 
 (r/render [:div
-           [PlayChordProgression]
-           [ShowProgression]] (.getElementById js/document "app"))
+           [:div.ui.masthead.segment
+            [:div.ui.container
+             [:div.ui.header
+              [:a {:href "/"} "Musicality"]]]]
+           [:div.ui.container.main
+            ;;[ShowProgression]
+            [PlayChordProgression]]] (.getElementById js/document "app"))
