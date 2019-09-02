@@ -1,6 +1,8 @@
 (ns musicality.core
   (:require [cljsjs.howler]
-            [reagent.core :as r]))
+            [musicality.semantic :refer [Dropdown]]
+            [reagent.core :as r])
+  (:require-macros [reagent.interop :refer [$]]))
 
 (enable-console-print!)
 
@@ -20,9 +22,15 @@
                          [:A :D :A :E]
                          [:D :A :E :A]])
 
-(def chord-map {:A "audio/A.m4a"
-                 :D "audio/D.m4a"
-                 :E "audio/E.m4a"})
+(def chord-map #_{:A "audio/A.m4a"
+                :D "audio/D.m4a"
+                  :E "audio/E.m4a"}
+  {:A "audio/A.wav"
+   :D "audio/D.wav"
+   :E "audio/E.wav"
+   :Am "audio/Am_Acoustic.wav"
+   :Dm "audio/Dm_Acoustic.wav"
+   :Em "audio/Em_Acoustic.wav"})
 
 (defn play-chord-progression
   [progression]
@@ -33,7 +41,6 @@
                           (when (< (+ i 1) (count chord-sound-vector))
                             (.on sound "end" #(.play (nth chord-sound-vector (+ i 1))))))
                         chord-sound-vector))
-    (println progression)
     (.play (first chord-sound-vector))))
 
 #_(let 
@@ -41,22 +48,51 @@
   (.on D "end" #(.play E))
   (.play A))
 
+(defn ChordPalette
+  []
+  
+  (let [palette (r/cursor state [:palette])
+        default-chords (keys chord-map)
+        process-palette (fn [palette]
+                          (map #(hash-map :key %
+                                          :text (-> % symbol str)
+                                          :value %) palette))]
+    (when-not @palette
+      (reset! palette default-chords))
+    [Dropdown {:placeholder "Chords"
+               :fluid true
+               :multiple true
+               :search true
+               :selection true
+               :options (process-palette default-chords)
+               :value @palette
+               :on-change (fn [event data]
+                            (reset! palette (into [] (->> ($ data :value) js->clj (map keyword)))))}]))
+
 (defn PlayChordProgression
   []
   (let [current-progression (r/cursor state [:current-progression])
-        reveal (r/cursor state [:reveal])]
+        reveal (r/cursor state [:reveal])
+        palette (r/cursor state [:palette])]
     [:div
      [:div [:h1 "Last Played Progression: " (cond (nil? @current-progression)
                                                   nil
                                                   @reveal
-                                                  (clojure.string/join "" (map #(-> % symbol str) @current-progression))
+                                                  (clojure.string/join " " (map #(-> % symbol str) @current-progression))
                                                   :else
                                                   [:button.ui.button {:on-click #(reset! reveal true)} "Reveal"])]]
      [:br]
+     [ChordPalette]
+     [:br]
      [:button.ui.button.positive.basic {:on-click (fn [e]
                                                     (reset! reveal false)
-                                                    (reset! current-progression (rand-nth chord-progressions))
-                                                    (play-chord-progression  @current-progression))
+                                                    (reset! current-progression
+                                                            
+                                                            (into [] (take 4 (repeatedly #(rand-nth @palette))))
+                                                            ;;(into [] (flatten (map (partial repeat 4) (into [] (take 4 (repeatedly #(rand-nth [:A :D :E])))))))
+                                                            ;;(rand-nth chord-progressions)
+                                                            )
+                                                    (play-chord-progression  @current-progression #_(into [] (flatten (map (partial repeat 4) @current-progression)))))
                :style {:font-size "1em"}}
       "Play New Progression"]
      (when-not (nil? @current-progression)
