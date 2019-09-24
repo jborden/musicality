@@ -35,34 +35,26 @@
    :E "audio/E.wav"
    :Am "audio/Am_Acoustic.wav"
    :Dm "audio/Dm_Acoustic.wav"
-   :Em "audio/Em_Acoustic.wav"})
+   :Em "audio/Em_Acoustic.wav"
+   :C "audio/C_Acoustic.wav"
+   :G "audio/G_Acoustic.wav"})
+
+(def chord-sound-map (apply merge (map #(hash-map (key %) (audio/Audio (val %))) chord-map)))
 
 (defn play-chord-progression
   "Play progression. playing? is an atom containing a boolean to determine if the chord
   should actually be play"
   [progression]
-  (let [chord-sound-vector (r/cursor state [:chord-sound-vector])
-        playing? (r/cursor state [:playing?])]
-    (when @playing?
-      (.log js/console @chord-sound-vector)
-      (mapv (fn [sound]
-              (.log js/console sound)
-              (.stop sound))
-            @chord-sound-vector))
+  (let [chord-sound-vector (r/cursor state [:chord-sound-vector])]
+    (doall (map #($ % stop) @chord-sound-vector))
     (reset! chord-sound-vector (mapv (fn [chord]
-                                       chord
-                                       #_(js/Howl. (clj->js {:src [(chord chord-map)]})))
-                                    progression))
-    #_(doall (map-indexed (fn [i sound]
-                          (when (< (+ i 1) (count @chord-sound-vector))
-                            (.on sound "end" #(.play (nth @chord-sound-vector (+ i 1))))))
-                        @chord-sound-vector))
-    #_(.play (first @chord-sound-vector))))
-
-#_(let 
-  (.on A "end" #(.play D))
-  (.on D "end" #(.play E))
-  (.play A))
+                                       (audio/Audio (chord chord-map)))
+                                     progression))
+    (doall (do (map-indexed (fn [i sound]
+                              (when (< (+ i 1) (count @chord-sound-vector))
+                                ($ sound setOnEnded #($ (nth @chord-sound-vector (+ i 1)) play))))
+                            @chord-sound-vector)))
+    ($ (first @chord-sound-vector) play)))
 
 (defn ChordPalette
   []
@@ -92,37 +84,46 @@
         key-state (r/cursor state [:key-state])
         reveal-fn #(reset! reveal true)
         playing? (r/cursor state [:playing?])
-        play-new-progression (fn [e]
-                               (when-not @playing?
-                                 (reset! reveal false)
-                                 (reset! current-progression
-                                         (into [] (take 4 (repeatedly #(rand-nth @palette)))))
-                                 (play-chord-progression @current-progression)))
-        play-progression (fn [e]
-                           (when-not @playing?
-                             (play-chord-progression  @current-progression)))]
-    (controls/key-down-handler
-     @key-state {:v-fn reveal-fn
-                 :n-fn play-new-progression
-                 :r-fn play-progression}
-     )
-    [:div
-     [:div [:h1 "Last Played Progression: " (cond (nil? @current-progression)
-                                                  nil
-                                                  @reveal
-                                                  (clojure.string/join " " (map #(-> % symbol str) @current-progression))
-                                                  :else
-                                                  [:button.ui.button {:on-click reveal-fn} "Reveal"])]]
-     [:br]
-     [ChordPalette]
-     [:br]
-     [:button.ui.button.positive.basic {:on-click play-new-progression
-               :style {:font-size "1em"}}
-      "Play New Progression"]
-     (when-not (nil? @current-progression)
-       [:button.ui.button.primary.basic {:on-click play-progression
-                                         :style {:font-size "1em"}}
-        [:i.redo.icon] "Replay"])]))
+        test-n-fn (fn [e] (.log js/console "n"))
+        play-new-progression (fn []
+                               (.log js/console "n")
+                               (reset! reveal false)
+                               (reset! current-progression
+                                       (into [] (take 4 (repeatedly #(rand-nth @palette)))))
+                               (play-chord-progression @current-progression))
+        play-progression (fn []
+                           (play-chord-progression  @current-progression))
+        key-up-fn (fn [e]
+                    (let [keycode (or ($ e :keycode)
+                                      ($ e :which))]
+                      (.log js/console "keycode: " (str keycode))
+                      (condp = (get controls/key-definitions (str keycode))
+                        :n (play-new-progression)
+                        :r (play-progression)
+                        :v (reveal-fn)
+                        nil)))]
+    (do (js/removeEventListener "keyup" key-up-fn true)
+        (js/addEventListener "keyup" key-up-fn true))
+    (r/create-class
+     {:reagent-render
+      (fn [args]
+        [:div
+         [:div [:h1 "Last Played Progression: " (cond (nil? @current-progression)
+                                                      nil
+                                                      @reveal
+                                                      (clojure.string/join " " (map #(-> % symbol str) @current-progression))
+                                                      :else
+                                                      [:button.ui.button {:on-click reveal-fn} "Reveal"])]]
+         [:br]
+         [ChordPalette]
+         [:br]
+         [:button.ui.button.positive.basic {:on-click play-new-progression
+                                            :style {:font-size "1em"}}
+          "Play New Progression"]
+         (when-not (nil? @current-progression)
+           [:button.ui.button.primary.basic {:on-click play-progression
+                                             :style {:font-size "1em"}}
+            [:i.redo.icon] "Replay"])])})))
 
 #_(defn ShowProgression
   []
