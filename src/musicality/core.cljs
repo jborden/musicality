@@ -96,7 +96,7 @@
         key-up-fn (fn [e]
                     (let [keycode (or ($ e :keycode)
                                       ($ e :which))]
-                      (.log js/console "keycode: " (str keycode))
+                      ;;(.log js/console "keycode: " (str keycode))
                       (condp = (get controls/key-definitions (str keycode))
                         :n (play-new-progression)
                         :r (play-progression)
@@ -120,6 +120,9 @@
          [:button.ui.button.positive.basic {:on-click play-new-progression
                                             :style {:font-size "1em"}}
           "Play New Progression"]
+         [:button.ui.button.positive.basic {:on-click #(.play (:Em chord-sound-map))
+                                            :style {:font-size "1em"}}
+          "play-chord"]
          (when-not (nil? @current-progression)
            [:button.ui.button.primary.basic {:on-click play-progression
                                              :style {:font-size "1em"}}
