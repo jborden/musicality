@@ -1,10 +1,12 @@
-# musicality
+# Musicality
 
-FIXME: Write a one-line description of your library/project.
+Musicality is a web app for musical learning
 
 ## Overview
 
-FIXME: Write a paragraph about the library/project and highlight its goals.
+The project contains a ClojureScript Web Audio API wrapper
+
+The web app portion is for personal musical development. The initial focus is on ear training.
 
 ## Setup
 
