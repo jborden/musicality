@@ -31,10 +31,10 @@
           ($! this :play-interval-id
               (js/setInterval (fn []
                                 (.log js/console "I wasn't ready")
-                               (if ($ this ready)
-                                 (do
-                                   (js/clearInterval ($ this :play-interval-id))
-                                   ($ this internalPlay))))
+                                (if ($ this ready)
+                                  (do
+                                    (js/clearInterval ($ this :play-interval-id))
+                                    ($ this internalPlay))))
                               100))))
       (getSourceNode [this]
         ($ this :source-node))
@@ -51,20 +51,20 @@
       (getBuffer [this]
         ($ this :buffer))
       (loadUrl [this]
-           (let [request (js/XMLHttpRequest.)]
-                     (doto request
-                       ($ open "GET" url true)
-                       ($! :responseType "arraybuffer")
-                       ($! :onload (fn []
-                                     ($ context decodeAudioData
-                                        ($ request :response)
-                                        ;; onBufferLoad
-                                        (fn [b]
-                                          ($ this setBuffer b))
-                                        ;; onBufferError
-                                        (fn [e]
-                                          ($ js/console log url "onBufferError" e)))))
-                       ($ send)))))))
+        (let [request (js/XMLHttpRequest.)]
+          (doto request
+            ($ open "GET" url true)
+            ($! :responseType "arraybuffer")
+            ($! :onload (fn []
+                          ($ context decodeAudioData
+                             ($ request :response)
+                             ;; onBufferLoad
+                             (fn [b]
+                               ($ this setBuffer b))
+                             ;; onBufferError
+                             (fn [e]
+                               ($ js/console log url "onBufferError" e)))))
+            ($ send)))))))
 
 (defn Audio [url]
   (let [audio-source (AudioRaw url)]
@@ -86,9 +86,7 @@
                        ($ request :response)
                        ;; onBufferLoad
                        (fn [b]
-                         (reset! buffer b)
-                         ;;($ buffer setBuffer b)
-                         )
+                         (reset! buffer b))
                        ;; onBufferError
                        (fn [e]
                          ($ js/console log audio-url "onBufferError" e)))))
@@ -126,44 +124,22 @@
       ($! source-node :onended on-ended))
     ($ source-node start 0)))
 
-(defn play-check-interval
-  "Play when everything is ready to go"
-  [audio & [opts]]
-  (let [{:keys [interval-id]} opts]
+(let [interval-id (atom nil)]
+  (defn play-check-interval
+    "Play when everything is ready to go"
+    [audio & [opts]]
     (if (ready? audio)
       (do
-        (js/clearInterval interval-id)
+        (js/clearInterval @interval-id)
         (do-play audio opts))
-      (play-check-interval (js/setInterval )))))
+      (reset! interval-id (js/setInterval #(play-check-interval audio opts) 100)))))
 
 (defn play
   "Play audio using optional map opts.
   opts is
   {:on-ended fn ; a callback fn to execute when audio is done playing}"
   [audio & [opts]]
-  (let [interval-id (atom nil)
-        ;; play-check-interval (fn []
-        ;;                       (when (ready? audio)
-        ;;                         (js/clearInterval @interval-id)
-        ;;                         (do-play audio opts))
-        ;;                       (when-not (ready? audio)
-        ;;                         (reset! interval-id
-        ;;                                 (js/setInterval (play-check-interval)
-        ;;                                                 100))))
-        ]
-    #_(if (ready? audio)
+  (let [interval-id (atom nil)]
+    (if (ready? audio)
       (do-play audio opts)
-      (play-check-interval))))
-
-
-(defn promise-foo []
-  (let [
-        promise (js/Promise.
-                 (fn [resolve reject]
-                   (js/setTimeout
-                    (fn []
-                      (resolve "foo"))
-                    300)))]
-    (doto promise
-      ($ then (fn [value]
-                value)))))
+      (play-check-interval audio))))
