@@ -1,5 +1,6 @@
 (ns musicality.synthesizer)
 
+;; https://pages.mtu.edu/~suits/NoteFreqCalcs.html
 (def f0 440)
 
 (def notes [:C :C# :D :D# :E :F :F# :G :G# :A :A# :B])
@@ -16,3 +17,8 @@
            (.indexOf notes :A))
         (* (- octave 4) 12))))
 
+;; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Simple_synth
+;; not working yet
+#_(def master-gain-node (.. (js/AudioContext.)
+                          (createGain)
+                          ))
